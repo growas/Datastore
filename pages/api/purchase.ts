@@ -1,49 +1,31 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import type { NextApiRequest, NextApiResponse } from "next";
+import axios from "axios";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const { email, bundleId, amount } = req.body;
-
-  if (!email || !bundleId || !amount) {
-    return res.status(400).json({ error: 'Missing fields' });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const { amount } = req.body;
+
   try {
-    // Deduct from wallet
-    const { data: wallet } = await supabase
-      .from('wallet')
-      .select('balance')
-      .eq('email', email)
-      .single();
+    const response = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        email: "customer@example.com", // Replace with your customer's email
+        amount: amount * 100 // Paystack uses kobo, multiply by 100
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    if (!wallet || wallet.balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    const newBalance = wallet.balance - amount;
-    await supabase.from('wallet').upsert({ email, balance: newBalance });
-
-    // Insert order
-    const refNum = '#a' + Math.floor(10000 + Math.random() * 90000);
-    await supabase.from('orders').insert({
-      email,
-      bundle_id: bundleId,
-      amount,
-      status: 'processing',
-      reference: refNum,
-    });
-
-    res.status(200).json({ success: true, newBalance, reference: refNum });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Purchase failed' });
+    res.status(200).json(response.data.data);
+  } catch (error: any) {
+    console.error(error.response?.data || error.message);
+    res.status(500).json({ error: "Payment initialization failed" });
   }
 }
