@@ -7,6 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY!
 );
 
+// Define the shape of Paystack response
 type PaystackVerifyResponse = {
   status: boolean;
   message: string;
@@ -14,7 +15,7 @@ type PaystackVerifyResponse = {
     status: string;
     reference: string;
     amount: number;
-    // add any other fields you need
+    // add any other fields you expect from Paystack
   };
 };
 
@@ -31,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
 
-    // Now TypeScript knows the type of response.data
+    // Now TypeScript knows response.data has the correct structure
     if (response.data.data.status !== 'success') {
       return res.status(400).json({ error: 'Payment not verified' });
     }
