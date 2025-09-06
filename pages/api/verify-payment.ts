@@ -14,7 +14,7 @@ type PaystackVerifyResponse = {
     status: string;
     reference: string;
     amount: number;
-    // add other fields you might use
+    // add any other fields you need
   };
 };
 
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
 
-    // TypeScript now knows the structure of response.data
+    // Now TypeScript knows the type of response.data
     if (response.data.data.status !== 'success') {
       return res.status(400).json({ error: 'Payment not verified' });
     }
