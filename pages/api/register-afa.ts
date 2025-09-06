@@ -6,27 +6,21 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY!
 );
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { name, phone, email, dob } = req.body;
 
   if (!name || !phone || !email || !dob) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: 'Missing fields' });
   }
 
   try {
-    await supabase.from('afa').insert({
-      name,
-      phone,
-      email,
-      dob,
-      fee: 8 // GHS
-    });
-
-    return res.status(200).json({ success: true, message: 'AFA Registered successfully' });
+    await supabase.from('afa').insert({ name, phone, email, dob });
+    res.status(200).json({ success: true, message: 'AFA Registered!' });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ error: 'AFA registration failed' });
   }
 }
