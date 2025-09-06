@@ -1,37 +1,33 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!
 );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).end();
-
-  const { reference, email, amount } = req.body;
+  const { reference } = req.query;
 
   try {
-    // Verify with Paystack
-    const response = await axios.get(
+    const response: AxiosResponse<any> = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
-      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        },
+      }
     );
 
+    // Now TypeScript knows response.data exists
     if (response.data.data.status !== 'success') {
       return res.status(400).json({ error: 'Payment not verified' });
     }
 
-    // Update wallet
-    const { error } = await supabase
-      .from('wallet')
-      .upsert({ email, balance: amount }, { onConflict: 'email' });
-
-    if (error) throw error;
-
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    // handle success...
+    res.status(200).json({ message: 'Payment verified', data: response.data.data });
+  } catch (error) {
+    res.status(500).json({ error: 'Something went wrong', details: error });
   }
 }
