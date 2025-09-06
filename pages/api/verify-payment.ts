@@ -7,7 +7,6 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY!
 );
 
-// Define the shape of Paystack response
 type PaystackVerifyResponse = {
   status: boolean;
   message: string;
@@ -15,12 +14,16 @@ type PaystackVerifyResponse = {
     status: string;
     reference: string;
     amount: number;
-    // add any other fields you expect from Paystack
+    // Add more fields if needed
   };
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { reference } = req.query;
+
+  if (!reference || typeof reference !== 'string') {
+    return res.status(400).json({ error: 'Reference is required' });
+  }
 
   try {
     const response = await axios.get<PaystackVerifyResponse>(
@@ -32,7 +35,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
 
-    // Now TypeScript knows response.data has the correct structure
     if (response.data.data.status !== 'success') {
       return res.status(400).json({ error: 'Payment not verified' });
     }
