@@ -3,144 +3,233 @@ import BundleSelector from "../components/BundleSelector";
 import AfaRegistration from "../components/AfaRegistration";
 import { supabase } from "../lib/supabaseClient";
 
+interface Transaction {
+  id: number;
+  type: "deposit" | "purchase";
+  amount: number;
+  description: string;
+  created_at: string;
+}
+
 export default function Home() {
   const [balance, setBalance] = useState<number>(0);
-  const [purchases, setPurchases] = useState<any[]>([]);
-  const userId = "demo-user"; // ⚡ later replace with real auth user ID
+  const [email, setEmail] = useState<string>("");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Load wallet + purchases from Supabase
+  // Fetch wallet balance + transactions
   useEffect(() => {
-    const fetchData = async () => {
-      // Wallet
-      const { data: wallet } = await supabase
+    const fetchWallet = async () => {
+      if (!email) return;
+
+      // Fetch balance
+      const { data: walletData } = await supabase
         .from("wallets")
         .select("balance")
-        .eq("user_id", userId)
+        .eq("user_id", email)
         .single();
 
-      if (wallet) setBalance(wallet.balance);
+      if (walletData) setBalance(walletData.balance);
 
-      // Purchases
-      const { data: history } = await supabase
-        .from("purchases")
+      // Fetch transactions
+      const { data: txData } = await supabase
+        .from("transactions")
         .select("*")
-        .eq("user_id", userId)
-        .order("date", { ascending: false });
+        .eq("user_id", email)
+        .order("created_at", { ascending: false });
 
-      if (history) setPurchases(history);
+      if (txData) setTransactions(txData);
     };
 
-    fetchData();
-  }, []);
+    fetchWallet();
+  }, [email]);
 
-  // Update wallet balance in Supabase
-  const updateWallet = async (newBalance: number) => {
-    await supabase.from("wallets").upsert({ user_id: userId, balance: newBalance });
-    setBalance(newBalance);
-  };
-
-  // Save purchase in Supabase
-  const savePurchase = async (purchase: any) => {
-    await supabase.from("purchases").insert([{ user_id: userId, ...purchase }]);
-    setPurchases([purchase, ...purchases]);
-  };
-
-  // Handle bundle purchases
-  const handleBundlePurchase = async (
-    network: string,
-    bundle: { name: string; price: number },
-    method: "wallet" | "paystack",
-    recipient: string,
-    email?: string
+  // Save a transaction in Supabase
+  const logTransaction = async (
+    type: "deposit" | "purchase",
+    amount: number,
+    description: string
   ) => {
-    if (!recipient) {
-      alert("Please enter a recipient number.");
-      return;
-    }
+    if (!email) return;
 
+    await supabase.from("transactions").insert([
+      {
+        user_id: email,
+        type,
+        amount,
+        description,
+      },
+    ]);
+
+    // Refresh transactions
+    const { data } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", email)
+      .order("created_at", { ascending: false });
+
+    if (data) setTransactions(data);
+  };
+
+  // Handle bundle purchase
+  const updateDashboard = async (
+    network: string,
+    bundleName: string,
+    price: number,
+    method: "wallet" | "paystack",
+    buyerEmail?: string
+  ) => {
     if (method === "wallet") {
-      if (balance < bundle.price) {
-        alert("Insufficient wallet balance. Please top-up.");
+      if (balance < price) {
+        alert("Insufficient balance. Please top up your wallet.");
         return;
       }
-      const newPurchase = {
-        network,
-        bundle: bundle.name,
-        amount: bundle.price,
-        recipient,
-        method: "Wallet",
-        date: new Date().toISOString(),
-      };
-      await updateWallet(balance - bundle.price);
-      await savePurchase(newPurchase);
-      alert("Bundle purchased with Wallet!");
-    } else {
-      alert(
-        `Redirecting to Paystack for ${bundle.name} - GHS ${bundle.price.toFixed(
-          2
-        )}`
-      );
-      // ⚡ Integrate Paystack here
+
+      const newBalance = balance - price;
+
+      // Update Supabase wallet
+      await supabase
+        .from("wallets")
+        .update({ balance: newBalance })
+        .eq("user_id", buyerEmail);
+
+      setBalance(newBalance);
+
+      await logTransaction("purchase", price, `${network} - ${bundleName}`);
+    } else if (method === "paystack" && buyerEmail) {
+      const handler = (window as any).PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: buyerEmail,
+        amount: price * 100,
+        currency: "GHS",
+        callback: async function (response: any) {
+          alert("Payment successful! Ref: " + response.reference);
+
+          // Store purchase (webhook will also update balance)
+          await logTransaction("purchase", price, `${network} - ${bundleName}`);
+        },
+        onClose: function () {
+          alert("Payment window closed");
+        },
+      });
+
+      handler.openIframe();
     }
   };
 
   // Handle wallet top-up
-  const handleTopUp = async (amount: number, email?: string) => {
-    if (amount <= 0) {
-      alert("Enter a valid top-up amount.");
+  const handleTopUp = (amount: number, buyerEmail?: string) => {
+    if (!buyerEmail) {
+      alert("Please enter your email to top-up.");
       return;
     }
-    alert(`Redirecting to Paystack for wallet top-up GHS ${amount}`);
-    // ⚡ After Paystack success:
-    await updateWallet(balance + amount);
-  };
 
-  // Handle AFA registration
-  const handleAfaRegister = async (formData: any) => {
-    const price = 8;
-    if (balance < price) {
-      alert("Insufficient wallet balance. Please top-up.");
-      return;
-    }
-    const newPurchase = {
-      network: "AFA",
-      bundle: "Membership Registration",
-      amount: price,
-      method: "Wallet",
-      date: new Date().toISOString(),
-    };
-    await updateWallet(balance - price);
-    await savePurchase(newPurchase);
-    alert("AFA Registration completed!");
+    const handler = (window as any).PaystackPop.setup({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+      email: buyerEmail,
+      amount: amount * 100,
+      currency: "GHS",
+      callback: async function (response: any) {
+        alert("Top-up successful! Ref: " + response.reference);
+
+        // Log deposit (webhook should update balance in DB)
+        await logTransaction("deposit", amount, "Wallet Top-up");
+      },
+      onClose: function () {
+        alert("Payment window closed");
+      },
+    });
+
+    handler.openIframe();
   };
 
   return (
     <div className="space-y-8 p-4">
-      {/* Wallet Balance */}
-      <div className="p-4 rounded-lg shadow bg-green-50">
-        <h2 className="text-lg font-bold text-green-700">Wallet Balance</h2>
-        <p className="text-2xl font-semibold">GHS {balance.toFixed(2)}</p>
+      {/* Email input */}
+      <input
+        type="email"
+        placeholder="Enter your email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="border p-2 rounded w-full"
+      />
+
+      {/* Wallet Balance & Top-up */}
+      <div className="p-4 rounded-lg shadow bg-gray-100">
+        <h2 className="text-lg font-bold">Wallet Balance: GHS {balance}</h2>
+        <div className="flex space-x-2 mt-2">
+          <button
+            onClick={() => handleTopUp(20, email)}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+          >
+            Top-up GHS 20
+          </button>
+          <button
+            onClick={() => handleTopUp(50, email)}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Top-up GHS 50
+          </button>
+        </div>
       </div>
 
       {/* Bundle Selector */}
-      <BundleSelector onSelect={handleBundlePurchase} onTopUp={handleTopUp} />
+      <BundleSelector
+        onSelect={(network, bundle, recipient, buyerEmail) => {
+          if (!buyerEmail) {
+            alert("Please enter your email before purchase.");
+            return;
+          }
+
+          const method = confirm(
+            `Pay with wallet (OK) or Paystack (Cancel)?`
+          )
+            ? "wallet"
+            : "paystack";
+
+          updateDashboard(network, bundle.name, bundle.price, method, buyerEmail);
+        }}
+      />
 
       {/* AFA Registration */}
-      <AfaRegistration onRegister={handleAfaRegister} />
+      <AfaRegistration
+        onRegister={(formData) => {
+          const price = 8;
+          const method = confirm(
+            "Pay with wallet (OK) or Paystack (Cancel)?"
+          )
+            ? "wallet"
+            : "paystack";
 
-      {/* Purchase History */}
-      <div className="p-4 rounded-lg shadow bg-gray-50">
-        <h2 className="text-lg font-bold text-gray-700">Purchase History</h2>
-        <ul className="space-y-2">
-          {purchases.map((p, idx) => (
-            <li key={idx} className="border-b pb-2 text-sm">
-              <span className="font-medium">{p.network}</span> — {p.bundle} —{" "}
-              GHS {p.amount} — {p.method} —{" "}
-              {new Date(p.date).toLocaleString()}
-            </li>
-          ))}
-        </ul>
+          updateDashboard("AFA", "Membership Registration", price, method, email);
+        }}
+      />
+
+      {/* Transaction History */}
+      <div className="p-4 rounded-lg shadow bg-white">
+        <h2 className="text-lg font-bold mb-3">Transaction History</h2>
+        {transactions.length === 0 ? (
+          <p className="text-gray-500">No transactions yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {transactions.map((tx) => (
+              <li
+                key={tx.id}
+                className="flex justify-between border-b pb-1 text-sm"
+              >
+                <span>
+                  {tx.type === "deposit" ? "💰" : "📦"} {tx.description}
+                </span>
+                <span className="font-semibold">
+                  GHS {tx.amount}{" "}
+                  <span className="text-gray-500 text-xs">
+                    ({new Date(tx.created_at).toLocaleString()})
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
-}
+  }
