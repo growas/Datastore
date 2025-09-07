@@ -19,13 +19,40 @@ export default function AfaRegistration({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const price = 8; // AFA membership fee
+
+    // Update purchase history
+    const newPurchase = {
+      network: "AFA",
+      bundle: "Membership Registration",
+      amount: price,
+      date: new Date().toLocaleString(),
+    };
+
+    const purchases = JSON.parse(localStorage.getItem("purchases") || "[]");
+    purchases.push(newPurchase);
+    localStorage.setItem("purchases", JSON.stringify(purchases));
+
+    // Deduct from balance
+    const currentBalance = Number(localStorage.getItem("balance") || 0);
+    localStorage.setItem("balance", (currentBalance - price).toString());
+
+    // Call original handler for Paystack payment
     onRegister(form);
+
+    // Reset form
+    setForm({
+      fullName: "",
+      phone: "",
+      location: "",
+      dob: "",
+    });
   };
 
   return (
     <div className="p-4 rounded-lg shadow bg-gray-50 space-y-4">
-      <h2 className="text-xl font-bold flex items-center gap-2 text-blue-700">
-        <UserIcon className="w-6 h-6 text-blue-600" />
+      <h2 className="text-xl font-bold flex items-center gap-2 text-green-700">
+        <UserIcon className="w-6 h-6 text-green-600" />
         AFA Registration
       </h2>
 
