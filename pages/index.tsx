@@ -23,9 +23,13 @@ export default function Home() {
   return (
     <div className="space-y-8 p-4">
       <BundleSelector
-        onSelect={(network, bundle) => {
+        onSelect={(network, bundle, recipient, email) => {
           console.log("Selected bundle:", network, bundle);
-          // ⚡ Call your Paystack API with bundle.price here
+          console.log("Recipient:", recipient);
+          console.log("Email:", email);
+          // ⚡ Call your Paystack API here with:
+          // bundle.price, recipient, email
+          // Do not modify your live payment logic
           updateDashboard(network, bundle.name, bundle.price);
         }}
       />
