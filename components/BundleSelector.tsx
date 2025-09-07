@@ -13,6 +13,7 @@ interface BundleSelectorProps {
     recipient: string,
     email?: string
   ) => void;
+  onTopUp: (amount: number, email?: string) => void;
 }
 
 const networkColors: Record<string, string> = {
@@ -51,15 +52,34 @@ const bundlesData: Record<string, Bundle[]> = {
   ],
 };
 
-export default function BundleSelector({ onSelect }: BundleSelectorProps) {
+export default function BundleSelector({ onSelect, onTopUp }: BundleSelectorProps) {
   const [recipient, setRecipient] = useState("");
   const [email, setEmail] = useState("");
+  const [topUpAmount, setTopUpAmount] = useState(0);
   const [selectedNetwork, setSelectedNetwork] = useState("MTN");
 
   const bundles = bundlesData[selectedNetwork];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Wallet Top-up */}
+      <div className="p-4 border rounded bg-gray-50 space-y-2">
+        <h2 className="font-semibold text-green-700">💰 Wallet Top-up</h2>
+        <input
+          type="number"
+          placeholder="Enter amount (GHS)"
+          value={topUpAmount}
+          onChange={(e) => setTopUpAmount(Number(e.target.value))}
+          className="border p-2 rounded w-full"
+        />
+        <button
+          onClick={() => onTopUp(topUpAmount, email)}
+          className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+        >
+          Top-up via Paystack
+        </button>
+      </div>
+
       {/* Network selection */}
       <div className="flex space-x-2">
         {Object.keys(bundlesData).map((network) => (
