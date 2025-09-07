@@ -25,19 +25,26 @@ export default function Home() {
       date: new Date().toLocaleString(),
     };
 
-    const updatedPurchases = [...purchases, newPurchase];
-    setPurchases(updatedPurchases);
-    localStorage.setItem("purchases", JSON.stringify(updatedPurchases));
+    // Update purchases state and localStorage
+    setPurchases((prev) => {
+      const updatedPurchases = [...prev, newPurchase];
+      localStorage.setItem("purchases", JSON.stringify(updatedPurchases));
+      return updatedPurchases;
+    });
 
-    const newBalance = balance - price;
-    setBalance(newBalance);
-    localStorage.setItem("balance", newBalance.toString());
+    // Update balance state and localStorage
+    setBalance((prev) => {
+      const newBalance = prev - price;
+      localStorage.setItem("balance", newBalance.toString());
+      return newBalance;
+    });
   };
 
   useEffect(() => {
     // Initialize balance if not set
     if (!localStorage.getItem("balance")) {
       localStorage.setItem("balance", "0");
+      setBalance(0);
     }
   }, []);
 
@@ -62,7 +69,7 @@ export default function Home() {
         }}
       />
 
-      {/* Simple Dashboard */}
+      {/* Auto-updating Dashboard */}
       <div className="mt-8 border-t pt-4">
         <h2 className="text-xl font-bold mb-2">Dashboard</h2>
         <p className="mb-2">Balance: GHS {balance.toFixed(2)}</p>
