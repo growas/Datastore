@@ -6,16 +6,23 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const response = await axios.post("YOUR_PAYMENT_ENDPOINT", req.body);
+    const { amount, email } = req.body;
 
-<<<<<<< HEAD
-    // Fix: TypeScript-safe access
-    const respData = (response as any)?.data?.data;
-    res.status(200).json(respData);
-=======
-    const respData = (response as any)?.data?.data;
-res.status(200).json(respData);
->>>>>>> 7284de8 (Fix TypeScript error in purchase.ts for safe response handling)
+    const response = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        amount: amount * 100, // Paystack uses pesewas
+        email,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(200).json(response.data);
   } catch (error: any) {
     console.error(error.response?.data || error.message);
     res.status(500).json({ error: "Payment initialization failed" });
