@@ -1,93 +1,108 @@
-import BundleSelector from "../components/BundleSelector";
-import AfaRegistration from "../components/AfaRegistration";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-interface Purchase {
-  network: string;
-  bundle: string;
-  amount: number;
-  date: string;
+interface Bundle {
+  name: string;
+  price: number;
 }
 
-export default function Home() {
-  const [balance, setBalance] = useState<number>(
-    Number(localStorage.getItem("balance") || 0)
-  );
-  const [purchases, setPurchases] = useState<Purchase[]>(
-    JSON.parse(localStorage.getItem("purchases") || "[]")
-  );
+interface BundleSelectorProps {
+  onSelect: (
+    network: string,
+    bundle: Bundle,
+    recipient: string,
+    email?: string
+  ) => void;
+}
 
-  const updateDashboard = (network: string, bundleName: string, price: number) => {
-    const newPurchase: Purchase = {
-      network,
-      bundle: bundleName,
-      amount: price,
-      date: new Date().toLocaleString(),
-    };
+const networkColors: Record<string, string> = {
+  MTN: "bg-yellow-400",
+  TELECEL: "bg-red-500",
+  "TIGO BIG-TIME": "bg-blue-500 text-white",
+  "TIGO ISHARE": "bg-blue-200",
+  AFA: "bg-green-300",
+};
 
-    // Update purchases state and localStorage
-    setPurchases((prev) => {
-      const updatedPurchases = [...prev, newPurchase];
-      localStorage.setItem("purchases", JSON.stringify(updatedPurchases));
-      return updatedPurchases;
-    });
+const bundlesData: Record<string, Bundle[]> = {
+  MTN: Array.from({ length: 30 }, (_, i) => ({
+    name: `${i + 1}GB`,
+    price: parseFloat(((i + 1) * 5.3).toFixed(2)),
+  })),
+  "TIGO ISHARE": Array.from({ length: 30 }, (_, i) => ({
+    name: `${i + 1}GB`,
+    price: (i + 1) * 5,
+  })),
+  "TIGO BIG-TIME": [
+    { name: "15GB", price: 57 },
+    { name: "20GB", price: 71 },
+    { name: "25GB", price: 76 },
+    { name: "30GB", price: 80 },
+    { name: "40GB", price: 90 },
+    { name: "50GB", price: 100 },
+    { name: "100GB", price: 210 },
+  ],
+  TELECEL: [
+    { name: "5GB", price: 24.5 },
+    { name: "10GB", price: 45 },
+    { name: "15GB", price: 60 },
+    { name: "20GB", price: 80 },
+    { name: "25GB", price: 100 },
+    { name: "30GB", price: 111 },
+  ],
+};
 
-    // Update balance state and localStorage
-    setBalance((prev) => {
-      const newBalance = prev - price;
-      localStorage.setItem("balance", newBalance.toString());
-      return newBalance;
-    });
-  };
+export default function BundleSelector({ onSelect }: BundleSelectorProps) {
+  const [recipient, setRecipient] = useState("");
+  const [email, setEmail] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("MTN");
 
-  useEffect(() => {
-    // Initialize balance if not set
-    if (!localStorage.getItem("balance")) {
-      localStorage.setItem("balance", "0");
-      setBalance(0);
-    }
-  }, []);
+  const bundles = bundlesData[selectedNetwork];
 
   return (
-    <div className="space-y-8 p-4">
-      {/* Bundle selection */}
-      <BundleSelector
-        onSelect={(network, bundle, recipient, email) => {
-          console.log("Selected bundle:", network, bundle, recipient, email);
-          // ⚡ Call your Paystack API with bundle.price here
-          updateDashboard(network, bundle.name, bundle.price);
-        }}
+    <div className="space-y-4">
+      {/* Network selection */}
+      <div className="flex space-x-2">
+        {Object.keys(bundlesData).map((network) => (
+          <button
+            key={network}
+            className={`px-3 py-1 rounded font-semibold ${
+              networkColors[network] || "bg-gray-300"
+            } ${selectedNetwork === network ? "ring-2 ring-black" : ""}`}
+            onClick={() => setSelectedNetwork(network)}
+          >
+            {network}
+          </button>
+        ))}
+      </div>
+
+      {/* Recipient and email input */}
+      <input
+        type="text"
+        placeholder="Recipient number"
+        value={recipient}
+        onChange={(e) => setRecipient(e.target.value)}
+        className="border p-2 rounded w-full"
+      />
+      <input
+        type="email"
+        placeholder="Email (for payment receipt)"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="border p-2 rounded w-full"
       />
 
-      {/* AFA Registration */}
-      <AfaRegistration
-        onRegister={(formData) => {
-          console.log("AFA Registration:", formData);
-          const price = 8; // AFA membership fee
-          // ⚡ Charge GHS 8.00 with Paystack here
-          updateDashboard("AFA", "Membership Registration", price);
-        }}
-      />
-
-      {/* Auto-updating Dashboard */}
-      <div className="mt-8 border-t pt-4">
-        <h2 className="text-xl font-bold mb-2">Dashboard</h2>
-        <p className="mb-2">Balance: GHS {balance.toFixed(2)}</p>
-        <h3 className="font-semibold">Purchase History:</h3>
-        {purchases.length === 0 ? (
-          <p>No purchases yet.</p>
-        ) : (
-          <ul className="list-disc pl-5">
-            {purchases
-              .slice()
-              .reverse()
-              .map((p, idx) => (
-                <li key={idx}>
-                  {p.date}: {p.network} - {p.bundle} - GHS {p.amount.toFixed(2)}
-                </li>
-              ))}
-          </ul>
-        )}
+      {/* Bundle buttons */}
+      <div className="grid grid-cols-3 gap-2">
+        {bundles.map((bundle, idx) => (
+          <button
+            key={idx}
+            className={`p-2 rounded font-medium text-center ${
+              networkColors[selectedNetwork] || "bg-gray-300"
+            }`}
+            onClick={() => onSelect(selectedNetwork, bundle, recipient, email)}
+          >
+            {bundle.name} - GHS {bundle.price.toFixed(2)}
+          </button>
+        ))}
       </div>
     </div>
   );
