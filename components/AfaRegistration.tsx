@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { UserIcon } from "@heroicons/react/24/solid";
-import { supabase } from "../lib/supabaseClient";
 
 export default function AfaRegistration({
   onRegister,
@@ -12,6 +11,7 @@ export default function AfaRegistration({
     phone: "",
     location: "",
     dob: "",
+    email: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -20,57 +20,28 @@ export default function AfaRegistration({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    try {
+      const res = await fetch("/api/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: 8, // AFA membership fee
+          email: form.email,
+        }),
+      });
+      const data = await res.json();
+      if (data?.data?.authorization_url) {
+        window.location.href = data.data.authorization_url;
+      } else {
+        alert("Payment failed to start");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong starting payment");
+    }
+
     onRegister(form);
-
-    const userEmail = localStorage.getItem("userEmail");
-    if (!userEmail) {
-      alert("Please make a deposit first to create your wallet.");
-      return;
-    }
-
-    // Charge is always GHS 8.00 for registration
-    const price = 8;
-
-    // Fetch user wallet
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", userEmail)
-      .single();
-
-    if (error || !user) {
-      alert("User not found. Please deposit first.");
-      return;
-    }
-
-    if (user.balance < price) {
-      alert("Insufficient wallet balance!");
-      return;
-    }
-
-    // Deduct from balance
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ balance: user.balance - price })
-      .eq("email", userEmail);
-
-    if (updateError) {
-      alert("Failed to update wallet balance. Try again.");
-      return;
-    }
-
-    // Save registration in purchases history
-    await supabase.from("purchases").insert([
-      {
-        email: userEmail,
-        network: "AFA",
-        bundle: "Membership Registration",
-        amount: price,
-        date: new Date().toISOString(),
-      },
-    ]);
-
-    alert("AFA Registration successful. GHS 8.00 deducted from wallet ✅");
   };
 
   return (
@@ -112,6 +83,15 @@ export default function AfaRegistration({
           type="date"
           name="dob"
           value={form.dob}
+          onChange={handleChange}
+          className="w-full p-2 border rounded"
+          required
+        />
+        <input
+          type="email"
+          name="email"
+          placeholder="Email (for Paystack receipt)"
+          value={form.email}
           onChange={handleChange}
           className="w-full p-2 border rounded"
           required
