@@ -1,60 +1,94 @@
-import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
 import BundleSelector from "../components/BundleSelector";
 import AfaRegistration from "../components/AfaRegistration";
-import { useRouter } from "next/router";
+import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
 
 export default function Home() {
   const supabase = useSupabaseClient();
   const user = useUser();
-  const router = useRouter();
 
-  const updateDashboard = (network: string, bundleName: string, price: number) => {
-    const newPurchase = {
-      network,
-      bundle: bundleName,
-      amount: price,
-      date: new Date().toLocaleString(),
-    };
+  const updateDashboard = async (
+    network: string,
+    bundleName: string,
+    price: number,
+    recipient: string,
+    email?: string,
+    method: "wallet" | "paystack" = "paystack"
+  ) => {
+    if (!user) {
+      alert("Please log in first.");
+      return;
+    }
 
-    const purchases = JSON.parse(localStorage.getItem("purchases") || "[]");
-    purchases.push(newPurchase);
-    localStorage.setItem("purchases", JSON.stringify(purchases));
+    if (method === "wallet") {
+      // Deduct wallet balance in Supabase
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", user.id)
+        .single();
 
-    const currentBalance = Number(localStorage.getItem("balance") || 0);
-    localStorage.setItem("balance", (currentBalance - price).toString());
-  };
+      if (profile.balance < price) {
+        alert("Insufficient wallet balance.");
+        return;
+      }
 
-  // ✅ Logout function
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+      // Update balance
+      await supabase
+        .from("profiles")
+        .update({ balance: profile.balance - price })
+        .eq("id", user.id);
+
+      // Save purchase
+      await supabase.from("purchases").insert([
+        {
+          user_id: user.id,
+          network,
+          bundle: bundleName,
+          amount: price,
+          recipient,
+          email,
+        },
+      ]);
+
+      alert("✅ Purchase successful using Wallet");
+    } else {
+      // Paystack flow
+      const res = await fetch("/api/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ network, bundle: bundleName, price, recipient, email }),
+      });
+
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl; // redirect to Paystack
+      } else {
+        alert("❌ Payment failed");
+      }
+    }
   };
 
   return (
     <div className="space-y-8 p-4">
-      {/* Logout button at the top */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-xl font-bold">Welcome, {user?.email}</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </div>
-
       <BundleSelector
-        onSelect={(network, bundle) => {
-          console.log("Selected bundle:", network, bundle);
-          updateDashboard(network, bundle.name, bundle.price);
+        onSelect={(network, bundle, recipient, email) => {
+          // Ask user how to pay
+          const method = confirm("Pay with wallet? Click 'OK' for Wallet or 'Cancel' for Paystack")
+            ? "wallet"
+            : "paystack";
+
+          updateDashboard(network, bundle.name, bundle.price, recipient, email, method);
         }}
       />
 
       <AfaRegistration
         onRegister={(formData) => {
-          console.log("AFA Registration:", formData);
-          const price = 8;
-          updateDashboard("AFA", "Membership Registration", price);
+          const method = confirm("Pay with wallet? Click 'OK' for Wallet or 'Cancel' for Paystack")
+            ? "wallet"
+            : "paystack";
+
+          const price = 8; // AFA fee
+          updateDashboard("AFA", "Membership Registration", price, formData.phone, formData.email, method);
         }}
       />
     </div>
