@@ -1,101 +1,129 @@
 import { useState } from "react";
 
 interface Bundle {
-  gb: number;
+  name: string;
   price: number;
 }
 
-interface NetworkBundles {
-  network: string;
-  color: string;
-  bundles: Bundle[];
+interface Props {
+  onSelect: (network: string, bundle: Bundle, recipient: string, email: string) => void;
 }
 
-const NETWORKS: NetworkBundles[] = [
-  {
-    network: "MTN",
-    color: "yellow",
-    bundles: Array.from({ length: 30 }, (_, i) => ({
-      gb: i + 1,
-      price: parseFloat(((i + 1) * 5.3).toFixed(2)),
-    })),
-  },
-  {
-    network: "TIGO ISHARE",
-    color: "blue",
-    bundles: Array.from({ length: 30 }, (_, i) => ({
-      gb: i + 1,
-      price: Math.round((i + 1) * 5.3),
-    })),
-  },
-  {
-    network: "TIGO BIG-TIME",
-    color: "white",
-    bundles: [
-      { gb: 15, price: 57 },
-      { gb: 20, price: 71 },
-      { gb: 25, price: 76 },
-      { gb: 30, price: 80 },
-      { gb: 40, price: 90 },
-      { gb: 50, price: 100 },
-      { gb: 100, price: 210 },
-    ],
-  },
-  {
-    network: "TELECEL",
-    color: "red",
-    bundles: [
-      { gb: 5, price: 24.5 },
-      { gb: 10, price: 45 },
-      { gb: 15, price: 60 },
-      { gb: 20, price: 80 },
-      { gb: 25, price: 100 },
-      { gb: 30, price: 111 },
-    ],
-  },
-];
+const bundlesData: Record<string, Bundle[]> = {
+  MTN: [
+    { name: "1GB", price: 5.3 },
+    { name: "2GB", price: 10.5 },
+    { name: "3GB", price: 15.4 },
+    { name: "4GB", price: 20.3 },
+    { name: "5GB", price: 25.2 },
+    { name: "6GB", price: 30.1 },
+    { name: "7GB", price: 35 },
+    { name: "8GB", price: 40 },
+    { name: "9GB", price: 45 },
+    { name: "10GB", price: 50 },
+    { name: "15GB", price: 75 },
+    { name: "20GB", price: 100 },
+    { name: "25GB", price: 125 },
+    { name: "30GB", price: 150 },
+  ],
+  TIGO_ISHARE: [
+    { name: "1GB", price: 5 },
+    { name: "2GB", price: 10 },
+    { name: "3GB", price: 15 },
+    { name: "4GB", price: 20 },
+    { name: "5GB", price: 25 },
+    { name: "6GB", price: 30 },
+    { name: "7GB", price: 35 },
+    { name: "8GB", price: 40 },
+    { name: "9GB", price: 45 },
+    { name: "10GB", price: 50 },
+    { name: "15GB", price: 75 },
+    { name: "20GB", price: 100 },
+    { name: "25GB", price: 125 },
+    { name: "30GB", price: 150 },
+  ],
+  TIGO_BIG_TIME: [
+    { name: "15GB", price: 57 },
+    { name: "20GB", price: 71 },
+    { name: "25GB", price: 76 },
+    { name: "30GB", price: 80 },
+    { name: "40GB", price: 90 },
+    { name: "50GB", price: 100 },
+    { name: "100GB", price: 210 },
+  ],
+  TELECEL: [
+    { name: "5GB", price: 24.5 },
+    { name: "10GB", price: 45 },
+    { name: "15GB", price: 60 },
+    { name: "20GB", price: 80 },
+    { name: "25GB", price: 100 },
+    { name: "30GB", price: 111 },
+  ],
+};
 
-interface BundleSelectorProps {
-  onSelect: (network: string, bundle: Bundle) => void;
-}
+const networkColors: Record<string, string> = {
+  MTN: "bg-yellow-400",
+  TELECEL: "bg-red-500",
+  TIGO_ISHARE: "bg-blue-500",
+  TIGO_BIG_TIME: "bg-white border border-black",
+};
 
-export default function BundleSelector({ onSelect }: BundleSelectorProps) {
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkBundles>(
-    NETWORKS[0]
-  );
+export default function BundleSelector({ onSelect }: Props) {
+  const [network, setNetwork] = useState("MTN");
+  const [recipient, setRecipient] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleSelect = (bundle: Bundle) => {
+    if (!recipient || !email) {
+      alert("Please enter recipient number and email.");
+      return;
+    }
+    onSelect(network, bundle, recipient, email);
+  };
 
   return (
-    <div>
-      <div className="flex space-x-4 mb-4">
-        {NETWORKS.map((net) => (
+    <div className="space-y-4">
+      <div className="flex space-x-2">
+        {Object.keys(bundlesData).map((net) => (
           <button
-            key={net.network}
-            style={{
-              backgroundColor: net.color,
-              color: net.color === "yellow" ? "black" : "white",
-              padding: "0.5rem 1rem",
-              borderRadius: "0.5rem",
-            }}
-            onClick={() => setSelectedNetwork(net)}
+            key={net}
+            className={`px-4 py-2 rounded font-bold ${
+              network === net ? networkColors[net] : "bg-gray-200"
+            }`}
+            onClick={() => setNetwork(net)}
           >
-            {net.network}
+            {net.replace("_", " ")}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {selectedNetwork.bundles.map((bundle) => (
+      <div className="space-y-2">
+        <input
+          type="text"
+          placeholder="Recipient number"
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+          className="border p-2 rounded w-full"
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border p-2 rounded w-full"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {bundlesData[network].map((bundle) => (
           <button
-            key={bundle.gb}
-            style={{
-              backgroundColor: selectedNetwork.color,
-              color: selectedNetwork.color === "yellow" ? "black" : "white",
-              padding: "0.5rem",
-              borderRadius: "0.5rem",
-            }}
-            onClick={() => onSelect(selectedNetwork.network, bundle)}
+            key={bundle.name}
+            className={`p-3 rounded font-semibold ${
+              networkColors[network] || "bg-gray-200"
+            }`}
+            onClick={() => handleSelect(bundle)}
           >
-            {bundle.gb}GB - GHS {bundle.price}
+            {bundle.name} - GHS {bundle.price}
           </button>
         ))}
       </div>
