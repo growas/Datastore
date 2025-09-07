@@ -4,7 +4,7 @@ import { UserIcon } from "@heroicons/react/24/solid";
 export default function AfaRegistration({
   onRegister,
 }: {
-  onRegister: (data: any) => void;
+  onRegister: (data: { fullName: string; phone: string; location: string; dob: string; email?: string }) => void;
 }) {
   const [form, setForm] = useState({
     fullName: "",
@@ -18,29 +18,8 @@ export default function AfaRegistration({
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    try {
-      const res = await fetch("/api/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: 8, // AFA membership fee
-          email: form.email,
-        }),
-      });
-      const data = await res.json();
-      if (data?.data?.authorization_url) {
-        window.location.href = data.data.authorization_url;
-      } else {
-        alert("Payment failed to start");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong starting payment");
-    }
-
     onRegister(form);
   };
 
@@ -90,11 +69,10 @@ export default function AfaRegistration({
         <input
           type="email"
           name="email"
-          placeholder="Email (for Paystack receipt)"
+          placeholder="Email (for receipt)"
           value={form.email}
           onChange={handleChange}
           className="w-full p-2 border rounded"
-          required
         />
 
         <button
