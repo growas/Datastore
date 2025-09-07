@@ -1,48 +1,27 @@
 import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-interface Bundle {
+type Bundle = {
   name: string;
   price: number;
-}
+};
 
-interface Props {
-  onSelect: (network: string, bundle: Bundle, recipient: string, email: string) => void;
-}
+type NetworkBundles = {
+  [key: string]: Bundle[];
+};
 
-const bundlesData: Record<string, Bundle[]> = {
-  MTN: [
-    { name: "1GB", price: 5.3 },
-    { name: "2GB", price: 10.5 },
-    { name: "3GB", price: 15.4 },
-    { name: "4GB", price: 20.3 },
-    { name: "5GB", price: 25.2 },
-    { name: "6GB", price: 30.1 },
-    { name: "7GB", price: 35 },
-    { name: "8GB", price: 40 },
-    { name: "9GB", price: 45 },
-    { name: "10GB", price: 50 },
-    { name: "15GB", price: 75 },
-    { name: "20GB", price: 100 },
-    { name: "25GB", price: 125 },
-    { name: "30GB", price: 150 },
-  ],
-  TIGO_ISHARE: [
-    { name: "1GB", price: 5 },
-    { name: "2GB", price: 10 },
-    { name: "3GB", price: 15 },
-    { name: "4GB", price: 20 },
-    { name: "5GB", price: 25 },
-    { name: "6GB", price: 30 },
-    { name: "7GB", price: 35 },
-    { name: "8GB", price: 40 },
-    { name: "9GB", price: 45 },
-    { name: "10GB", price: 50 },
-    { name: "15GB", price: 75 },
-    { name: "20GB", price: 100 },
-    { name: "25GB", price: 125 },
-    { name: "30GB", price: 150 },
-  ],
-  TIGO_BIG_TIME: [
+const bundles: NetworkBundles = {
+  MTN: Array.from({ length: 30 }, (_, i) => {
+    const gb = i + 1;
+    return { name: `${gb}GB`, price: parseFloat((gb * 5.2 + 0.1).toFixed(2)) };
+  }),
+
+  "TIGO iShare": Array.from({ length: 30 }, (_, i) => {
+    const gb = i + 1;
+    return { name: `${gb}GB`, price: Math.floor(gb * 5.2 + 0.1) }; // No decimals
+  }),
+
+  "TIGO Big-Time": [
     { name: "15GB", price: 57 },
     { name: "20GB", price: 71 },
     { name: "25GB", price: 76 },
@@ -51,6 +30,7 @@ const bundlesData: Record<string, Bundle[]> = {
     { name: "50GB", price: 100 },
     { name: "100GB", price: 210 },
   ],
+
   TELECEL: [
     { name: "5GB", price: 24.5 },
     { name: "10GB", price: 45 },
@@ -61,72 +41,91 @@ const bundlesData: Record<string, Bundle[]> = {
   ],
 };
 
-const networkColors: Record<string, string> = {
-  MTN: "bg-yellow-400",
-  TELECEL: "bg-red-500",
-  TIGO_ISHARE: "bg-blue-500",
-  TIGO_BIG_TIME: "bg-white border border-black",
+const networkColors: { [key: string]: string } = {
+  MTN: "bg-yellow-400 text-black",
+  "TIGO iShare": "bg-blue-600 text-white",
+  "TIGO Big-Time": "bg-blue-600 text-white",
+  TELECEL: "bg-red-600 text-white",
 };
 
-export default function BundleSelector({ onSelect }: Props) {
-  const [network, setNetwork] = useState("MTN");
-  const [recipient, setRecipient] = useState("");
-  const [email, setEmail] = useState("");
+export default function BundleSelector({
+  onSelect,
+}: {
+  onSelect: (network: string, bundle: Bundle) => void;
+}) {
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("");
 
-  const handleSelect = (bundle: Bundle) => {
-    if (!recipient || !email) {
-      alert("Please enter recipient number and email.");
+  const handlePurchase = async (network: string, bundle: Bundle) => {
+    const email = prompt("Enter your email to confirm purchase:");
+    if (!email) return;
+
+    // Fetch user
+    const { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    if (!user) {
+      alert("User not found. Please deposit first.");
       return;
     }
-    onSelect(network, bundle, recipient, email);
+
+    if (user.balance < bundle.price) {
+      alert("Insufficient balance. Please deposit more.");
+      return;
+    }
+
+    // Deduct balance
+    await supabase
+      .from("users")
+      .update({ balance: user.balance - bundle.price })
+      .eq("id", user.id);
+
+    // Record purchase
+    await supabase.from("purchases").insert({
+      user_id: user.id,
+      network,
+      bundle: bundle.name,
+      amount: bundle.price,
+    });
+
+    alert(`Purchase successful: ${bundle.name} (${network}) for GHS ${bundle.price}`);
+    onSelect(network, bundle);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex space-x-2">
-        {Object.keys(bundlesData).map((net) => (
+    <div className="p-4 rounded-lg shadow bg-gray-50 space-y-4">
+      <h2 className="text-xl font-bold">Select Data Bundle</h2>
+
+      {/* Network Buttons */}
+      <div className="flex flex-wrap gap-2">
+        {Object.keys(bundles).map((network) => (
           <button
-            key={net}
-            className={`px-4 py-2 rounded font-bold ${
-              network === net ? networkColors[net] : "bg-gray-200"
-            }`}
-            onClick={() => setNetwork(net)}
+            key={network}
+            onClick={() => setSelectedNetwork(network)}
+            className={`px-4 py-2 rounded ${networkColors[network]}`}
           >
-            {net.replace("_", " ")}
+            {network}
           </button>
         ))}
       </div>
 
-      <div className="space-y-2">
-        <input
-          type="text"
-          placeholder="Recipient number"
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {bundlesData[network].map((bundle) => (
-          <button
-            key={bundle.name}
-            className={`p-3 rounded font-semibold ${
-              networkColors[network] || "bg-gray-200"
-            }`}
-            onClick={() => handleSelect(bundle)}
-          >
-            {bundle.name} - GHS {bundle.price}
-          </button>
-        ))}
-      </div>
+      {/* Bundles for selected network */}
+      {selectedNetwork && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+          {bundles[selectedNetwork].map((bundle) => (
+            <button
+              key={bundle.name}
+              onClick={() => handlePurchase(selectedNetwork, bundle)}
+              className="p-3 border rounded hover:shadow-lg"
+            >
+              <p className="font-semibold">{bundle.name}</p>
+              <p className="text-gray-600">GHS {bundle.price}</p>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
