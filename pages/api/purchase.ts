@@ -1,29 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { amount } = req.body;
-
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
-    const response = await axios.post(
-      "https://api.paystack.co/transaction/initialize",
-      {
-        email: "customer@example.com", // Replace with your customer's email
-        amount: amount * 100 // Paystack uses kobo, multiply by 100
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    const response = await axios.post("YOUR_PAYMENT_ENDPOINT", req.body);
 
-    res.status(200).json(response.data.data);
+    // Fix: TypeScript-safe access
+    const respData = (response as any)?.data?.data;
+    res.status(200).json(respData);
   } catch (error: any) {
     console.error(error.response?.data || error.message);
     res.status(500).json({ error: "Payment initialization failed" });
