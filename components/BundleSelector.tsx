@@ -1,114 +1,127 @@
 import { useState } from "react";
 
-type Bundle = {
+interface Bundle {
   name: string;
   price: number;
+}
+
+interface BundleSelectorProps {
+  onSelect: (
+    network: string,
+    bundle: Bundle,
+    method: "wallet" | "paystack",
+    recipient: string,
+    email?: string
+  ) => void;
+}
+
+const networkColors: Record<string, string> = {
+  MTN: "bg-yellow-400",
+  TELECEL: "bg-red-500",
+  "TIGO BIG-TIME": "bg-blue-500 text-white",
+  "TIGO ISHARE": "bg-blue-200",
+  AFA: "bg-green-300",
 };
 
-type Props = {
-  onSelect: (network: string, bundle: Bundle, method: "wallet" | "paystack", recipient: string, email?: string) => void;
+const bundlesData: Record<string, Bundle[]> = {
+  MTN: Array.from({ length: 30 }, (_, i) => ({
+    name: `${i + 1}GB`,
+    price: parseFloat(((i + 1) * 5.3).toFixed(2)),
+  })),
+  "TIGO ISHARE": Array.from({ length: 30 }, (_, i) => ({
+    name: `${i + 1}GB`,
+    price: (i + 1) * 5,
+  })),
+  "TIGO BIG-TIME": [
+    { name: "15GB", price: 57 },
+    { name: "20GB", price: 71 },
+    { name: "25GB", price: 76 },
+    { name: "30GB", price: 80 },
+    { name: "40GB", price: 90 },
+    { name: "50GB", price: 100 },
+    { name: "100GB", price: 210 },
+  ],
+  TELECEL: [
+    { name: "5GB", price: 24.5 },
+    { name: "10GB", price: 45 },
+    { name: "15GB", price: 60 },
+    { name: "20GB", price: 80 },
+    { name: "25GB", price: 100 },
+    { name: "30GB", price: 111 },
+  ],
 };
 
-export default function BundleSelector({ onSelect }: Props) {
+export default function BundleSelector({ onSelect }: BundleSelectorProps) {
   const [recipient, setRecipient] = useState("");
   const [email, setEmail] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("MTN");
 
-  const networks: Record<string, { color: string; bundles: Bundle[] }> = {
-    MTN: {
-      color: "bg-yellow-300",
-      bundles: Array.from({ length: 30 }, (_, i) => ({
-        name: `${i + 1}GB`,
-        price: Number(((i + 1) * 5.2 + 0.1).toFixed(2)), // Example pricing
-      })),
-    },
-    "TIGO iShare": {
-      color: "bg-blue-200",
-      bundles: Array.from({ length: 30 }, (_, i) => ({
-        name: `${i + 1}GB`,
-        price: i + 1 * 5, // No decimals (as requested)
-      })),
-    },
-    "TIGO Big-Time": {
-      color: "bg-blue-400",
-      bundles: [
-        { name: "15GB", price: 57 },
-        { name: "20GB", price: 71 },
-        { name: "25GB", price: 76 },
-        { name: "30GB", price: 80 },
-        { name: "40GB", price: 90 },
-        { name: "50GB", price: 100 },
-        { name: "100GB", price: 210 },
-      ],
-    },
-    TELECEL: {
-      color: "bg-red-300",
-      bundles: [
-        { name: "5GB", price: 24.5 },
-        { name: "10GB", price: 45 },
-        { name: "15GB", price: 60 },
-        { name: "20GB", price: 80 },
-        { name: "25GB", price: 100 },
-        { name: "30GB", price: 111 },
-      ],
-    },
-  };
+  const bundles = bundlesData[selectedNetwork];
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center">Buy Data Bundles</h2>
-
-      <div className="space-y-2">
-        <input
-          type="tel"
-          placeholder="Recipient Phone Number"
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          type="email"
-          placeholder="Your Email (for Paystack)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border rounded"
-          required
-        />
+    <div className="space-y-4">
+      {/* Network selection */}
+      <div className="flex space-x-2">
+        {Object.keys(bundlesData).map((network) => (
+          <button
+            key={network}
+            className={`px-3 py-1 rounded font-semibold ${
+              networkColors[network] || "bg-gray-300"
+            } ${selectedNetwork === network ? "ring-2 ring-black" : ""}`}
+            onClick={() => setSelectedNetwork(network)}
+          >
+            {network}
+          </button>
+        ))}
       </div>
 
-      {Object.entries(networks).map(([network, { color, bundles }]) => (
-        <div key={network} className={`p-4 rounded-lg shadow ${color}`}>
-          <h3 className="text-lg font-bold mb-2">{network}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {bundles.map((bundle) => (
-              <div key={bundle.name} className="p-2 border rounded bg-white space-y-2">
-                <p className="font-semibold">{bundle.name}</p>
-                <p className="text-sm text-gray-600">GHS {bundle.price}</p>
+      {/* Recipient and email input */}
+      <input
+        type="text"
+        placeholder="Recipient number"
+        value={recipient}
+        onChange={(e) => setRecipient(e.target.value)}
+        className="border p-2 rounded w-full"
+      />
+      <input
+        type="email"
+        placeholder="Email (for payment receipt)"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="border p-2 rounded w-full"
+      />
 
-                <button
-                  onClick={() =>
-                    onSelect(network, bundle, "wallet", recipient)
-                  }
-                  className="w-full bg-green-600 text-white p-1 rounded text-sm hover:bg-green-700"
-                  disabled={!recipient}
-                >
-                  Buy with Wallet
-                </button>
-
-                <button
-                  onClick={() =>
-                    onSelect(network, bundle, "paystack", recipient, email)
-                  }
-                  className="w-full bg-blue-600 text-white p-1 rounded text-sm hover:bg-blue-700"
-                  disabled={!recipient || !email}
-                >
-                  Buy with Paystack
-                </button>
-              </div>
-            ))}
+      {/* Bundle buttons */}
+      <div className="grid grid-cols-3 gap-2">
+        {bundles.map((bundle, idx) => (
+          <div
+            key={idx}
+            className="flex flex-col items-center border rounded p-2 space-y-2"
+          >
+            <span className="font-medium">
+              {bundle.name} - GHS {bundle.price.toFixed(2)}
+            </span>
+            <div className="flex gap-2">
+              <button
+                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                onClick={() =>
+                  onSelect(selectedNetwork, bundle, "wallet", recipient, email)
+                }
+              >
+                Wallet
+              </button>
+              <button
+                className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={() =>
+                  onSelect(selectedNetwork, bundle, "paystack", recipient, email)
+                }
+              >
+                Paystack
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
