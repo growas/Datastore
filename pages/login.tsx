@@ -1,6 +1,7 @@
-import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
+// pages/login.tsx
 import { useEffect } from "react";
 import { useRouter } from "next/router";
+import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
 
 export default function Login() {
   const supabase = useSupabaseClient();
@@ -9,37 +10,32 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      router.push("/dashboard"); // redirect to wallet dashboard
+      router.push("/"); // redirect to dashboard
     }
   }, [user]);
 
-  const handleLogin = async (e: any) => {
-    e.preventDefault();
-    const email = e.target.email.value;
-
-    // Magic link login
-    await supabase.auth.signInWithOtp({ email });
-    alert("Check your email for the magic login link!");
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google", // You can change this to "github", "facebook", etc.
+    });
+    if (error) {
+      console.error("Login error:", error.message);
+    }
   };
 
   return (
-    <div className="p-8 flex flex-col items-center space-y-4">
-      <h1 className="text-2xl font-bold">Login</h1>
-      <form onSubmit={handleLogin} className="space-y-4 w-72">
-        <input
-          type="email"
-          name="email"
-          placeholder="Enter your email"
-          className="border p-2 rounded w-full"
-          required
-        />
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="p-8 bg-white rounded-xl shadow-md text-center space-y-4 w-80">
+        <h1 className="text-2xl font-bold text-blue-600">Login</h1>
+        <p className="text-gray-600">Sign in to access your wallet & dashboard</p>
+
         <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          onClick={handleLogin}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
         >
-          Send Magic Link
+          Sign in with Google
         </button>
-      </form>
+      </div>
     </div>
   );
 }
