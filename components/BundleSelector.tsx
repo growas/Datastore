@@ -6,7 +6,12 @@ interface Bundle {
 }
 
 interface BundleSelectorProps {
-  onSelect: (network: string, bundle: Bundle, recipient: string) => void;
+  onSelect: (
+    network: string,
+    bundle: Bundle,
+    recipient: string,
+    email?: string
+  ) => void;
 }
 
 const networkColors: Record<string, string> = {
@@ -14,6 +19,7 @@ const networkColors: Record<string, string> = {
   TELECEL: "bg-red-500",
   "TIGO BIG-TIME": "bg-blue-500 text-white",
   "TIGO ISHARE": "bg-blue-200",
+  AFA: "bg-green-300",
 };
 
 const bundlesData: Record<string, Bundle[]> = {
@@ -51,28 +57,6 @@ export default function BundleSelector({ onSelect }: BundleSelectorProps) {
 
   const bundles = bundlesData[selectedNetwork];
 
-  const handlePayment = async (bundle: Bundle) => {
-    try {
-      const res = await fetch("/api/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: bundle.price,
-          email,
-        }),
-      });
-      const data = await res.json();
-      if (data?.data?.authorization_url) {
-        window.location.href = data.data.authorization_url;
-      } else {
-        alert("Payment failed to start");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong starting payment");
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Network selection */}
@@ -97,10 +81,11 @@ export default function BundleSelector({ onSelect }: BundleSelectorProps) {
         value={recipient}
         onChange={(e) => setRecipient(e.target.value)}
         className="border p-2 rounded w-full"
+        required
       />
       <input
         type="email"
-        placeholder="Email (for payment receipt)"
+        placeholder="Email (for receipt)"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         className="border p-2 rounded w-full"
@@ -114,7 +99,9 @@ export default function BundleSelector({ onSelect }: BundleSelectorProps) {
             className={`p-2 rounded font-medium text-center ${
               networkColors[selectedNetwork] || "bg-gray-300"
             }`}
-            onClick={() => handlePayment(bundle)}
+            onClick={() =>
+              onSelect(selectedNetwork, bundle, recipient, email || undefined)
+            }
           >
             {bundle.name} - GHS {bundle.price.toFixed(2)}
           </button>
