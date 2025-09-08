@@ -81,11 +81,10 @@ export default function BundleSelector({ onSelect }: BundleSelectorProps) {
         value={recipient}
         onChange={(e) => setRecipient(e.target.value)}
         className="border p-2 rounded w-full"
-        required
       />
       <input
         type="email"
-        placeholder="Email (for receipt)"
+        placeholder="Email (for payment receipt)"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         className="border p-2 rounded w-full"
@@ -99,9 +98,7 @@ export default function BundleSelector({ onSelect }: BundleSelectorProps) {
             className={`p-2 rounded font-medium text-center ${
               networkColors[selectedNetwork] || "bg-gray-300"
             }`}
-            onClick={() =>
-              onSelect(selectedNetwork, bundle, recipient, email || undefined)
-            }
+            onClick={() => onSelect(selectedNetwork, bundle, recipient, email)}
           >
             {bundle.name} - GHS {bundle.price.toFixed(2)}
           </button>
