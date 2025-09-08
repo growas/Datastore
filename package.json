@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "dev": "pkill -f 'next dev' || true && next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -H 0.0.0.0 -p 3000"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
